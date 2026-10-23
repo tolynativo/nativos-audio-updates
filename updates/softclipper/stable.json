@@ -2,19 +2,19 @@
   "schema": 1,
   "product": "nativos-softclipper",
   "channel": "stable",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "notes": [
-    "New Reference 701 and Precision 128 clean-converter-inspired presets.",
-    "Updated factory preset labels with original Nativos Audio names.",
-    "Existing controls, preset saving, and update checker retained.",
+    "Added compact Input Gain and Output Gain knobs beneath the existing meters.",
+    "Added genuine 16x oversampling alongside 1x, 2x, 4x and 8x.",
+    "Retains original v2.6 artwork and all existing controls, presets and settings.",
     "Close your DAW before installing this unsigned release."
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.6.0/NativosSoftClipper-v2.6-macOS-Unsigned.pkg",
-    "sha256": "6fbba60e923f4721c06eec625753d7bae95c9c1fb358b7eae30c9be16966d4fa"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.0/NativosSoftClipper-v2.7-macOS-Unsigned.pkg",
+    "sha256": "9d7c039d946b8444f26cc19a3eb0bf72df8d4ea81237abe0d475be34f733f82f"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.6.0/NativosSoftClipper-v2.6-Windows-Unsigned-Setup.exe",
-    "sha256": "7077dfc38789c6acbc6b3709e9fc142e448f7666355eb8bacf8932ad34c494c1"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.0/NativosSoftClipper-v2.7-Windows-Unsigned-Setup.exe",
+    "sha256": "7de2a40d860d004f59384ac7cf1d4165cbda9655073d1c44b7a995816998aa1b"
   }
 }
