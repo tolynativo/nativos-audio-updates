@@ -4,13 +4,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-softclipper-v27.yml'
 
 permissions:
   contents: write
 
 jobs:
   publish_feed:
-    if: github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'v2.7.0'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.release.tag_name == 'v2.7.0'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -31,13 +35,40 @@ jobs:
           # A release can be marked pre-release accidentally at upload time.
           # Promote it to stable only after both approved files are verified.
           PY
-      - name: Download the exact approved installer files
+      - name: Extract approved installer files from the two GitHub Actions ZIP artifacts
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p installers
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir installers
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir installers
+          mkdir -p installers archives
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          if grep -Fxq "$MAC_NAME" <<< "$assets" && grep -Fxq "$WIN_NAME" <<< "$assets"; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir installers
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir installers
+          else
+            # The two GitHub Actions artifacts were attached as ZIPs.
+            # Extract exactly one PKG and EXE, without changing their bytes.
+            grep -Fxq 'NativosSoftClipper-macOS-Installer.zip' <<< "$assets"
+            grep -Fxq 'NativosSoftClipper-Windows-Installer.zip' <<< "$assets"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'NativosSoftClipper-macOS-Installer.zip' --dir archives
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'NativosSoftClipper-Windows-Installer.zip' --dir archives
+            python3 - <<'PY'
+          import os, shutil, zipfile
+          from pathlib import Path
+          for archive, extension, output in (
+              ('NativosSoftClipper-macOS-Installer.zip', '.pkg', os.environ['MAC_NAME']),
+              ('NativosSoftClipper-Windows-Installer.zip', '.exe', os.environ['WIN_NAME']),
+          ):
+              with zipfile.ZipFile(Path('archives') / archive) as z:
+                  candidates = [i for i in z.infolist() if not i.is_dir() and i.filename.endswith(extension)]
+                  if len(candidates) != 1:
+                      raise SystemExit(f'Expected exactly one {extension} installer in {archive}')
+                  with z.open(candidates[0]) as src, open(Path('installers') / output, 'wb') as dst:
+                      shutil.copyfileobj(src, dst)
+                  if (Path('installers') / output).stat().st_size < 1000000:
+                      raise SystemExit(f'Installer is unexpectedly small: {output}')
+          PY
+            gh release upload "$TAG" "installers/$MAC_NAME" "installers/$WIN_NAME" --repo "$GITHUB_REPOSITORY" --clobber
+          fi
           test -s "installers/$MAC_NAME"
           test -s "installers/$WIN_NAME"
       - name: Generate checksum-verified customer update manifest
