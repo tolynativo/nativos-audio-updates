@@ -1,0 +1,92 @@
+name: Publish reviewed Nativos Soft Clipper 1.0 installers (internal 2.7.2)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ship-verified-softclipper-v272.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish_verified_release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MAC_ARTIFACT_URL: 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-d280-81f5-b545-8b9604b6a05a/raw?se=2026-10-23T23%3A42%3A49Z&sp=r&sv=2026-02-06&sr=b&scid=88a9d1fc-e92b-58df-872b-c12803eb387a&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-23T06%3A33%3A21Z&ske=2026-10-24T06%3A33%3A21Z&sks=b&skv=2026-02-06&sig=7jvGetO1xS5RPWbAczWxkcT9w6dkGMbh8/DxJApL87g%3D'
+      WIN_ARTIFACT_URL: 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-ed3c-81f5-aaff-646fb90bc022/raw?se=2026-10-23T23%3A42%3A49Z&sp=r&sv=2026-02-06&sr=b&scid=e57b2655-0f6d-57e2-9069-927557fa0aa6&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-23T15%3A30%3A25Z&ske=2026-10-24T15%3A30%3A25Z&sks=b&skv=2026-02-06&sig=j1nynW77Yvx%2BBgRbXsHCY%2BHB02sJN4WQordMmCbt3zA%3D'
+      MAC_FILE: 'NativosSoftClipper-1.0-macOS-Installer.pkg'
+      WIN_FILE: 'NativosSoftClipper-1.0-Windows-Setup.exe'
+    steps:
+      - name: Download both reviewed build archives and verify integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --max-time 180 "$MAC_ARTIFACT_URL" --output mac.zip
+          curl --fail --silent --show-error --location --retry 3 --max-time 180 "$WIN_ARTIFACT_URL" --output win.zip
+          echo 'ea70abf40c7ce744c8a1364374118072831d802d8bc6da04a9aa7b3ba18c26da  mac.zip' | sha256sum --check
+          echo 'cc5e65f94a0c2e69a2c4e781b64ffcc6bc5fb4d278b0356a7cd1a2b5cfa0eda3  win.zip' | sha256sum --check
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import os
+          for archive, extension, destination in [
+             ('mac.zip','.pkg',os.environ['MAC_FILE']),
+             ('win.zip','.exe',os.environ['WIN_FILE']),
+          ]:
+              with ZipFile(archive) as z:
+                  files=[f for f in z.infolist() if not f.is_dir() and f.filename.endswith(extension)]
+                  if len(files)!=1 or '2.7.2' not in files[0].filename:
+                      raise SystemExit('Incorrect or ambiguous package from reviewed build: '+archive)
+                  blob=z.read(files[0])
+                  if len(blob)<1_000_000:
+                      raise SystemExit('Installer is unexpectedly small: '+archive)
+                  Path(destination).write_bytes(blob)
+          print('Both approved installers extracted without modifying their contents.')
+          PY
+      - name: Release Nativos Soft Clipper 1.0 for Mac and Windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > public-notes.txt <<'EOF'
+          Nativos Soft Clipper 1.0
+
+          - DRIVE and OUTPUT GAIN captions remain fully visible above their small knobs.
+          - Mac and Windows setup windows display Nativos Soft Clipper 1.0.
+          - The original audio processor, presets, gain ranges, LUFS monitoring and 16x oversampling are unchanged.
+          - Close your DAW before installing. Mac and Windows installers are currently unsigned.
+          EOF
+          if gh release view v2.7.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.7.2 "$MAC_FILE" "$WIN_FILE" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit v2.7.2 --repo "$GITHUB_REPOSITORY" --title "Nativos Soft Clipper 1.0" --notes-file public-notes.txt --draft=false --prerelease=false
+          else
+            gh release create v2.7.2 "$MAC_FILE" "$WIN_FILE" --repo "$GITHUB_REPOSITORY" --target main --title "Nativos Soft Clipper 1.0" --notes-file public-notes.txt
+          fi
+      - name: Activate the live update feed using exact installer SHA-256 hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          base='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/releases/download/v2.7.2/'
+          def asset(name):
+              return {'url':base+name,'sha256':hashlib.sha256(Path(name).read_bytes()).hexdigest()}
+          manifest={
+             'schema':1,'product':'nativos-softclipper','channel':'stable','version':'2.7.2',
+             'notes':['Fixed clipped DRIVE and OUTPUT GAIN labels.',
+                      'Customer setup screens now show Nativos Soft Clipper 1.0.',
+                      'Original DSP, presets and meter settings unchanged.',
+                      'Close your DAW before installing the unsigned packages.'],
+             'macos':asset(os.environ['MAC_FILE']),
+             'windows':asset(os.environ['WIN_FILE'])}
+          Path('stable.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+          path='updates/softclipper/stable.json'
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path" --jq '.sha')"
+          encoded="$(base64 -w0 stable.json)"
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+            -f 'message=Activate Nativos Soft Clipper 1.0 maintenance update' \
+            -f "content=$encoded" -f 'branch=main' -f "sha=$sha" >/dev/null
+          echo 'Verified update feed v2.7.2 successfully published.'
