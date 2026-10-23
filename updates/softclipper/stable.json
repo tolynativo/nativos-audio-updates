@@ -2,19 +2,20 @@
   "schema": 1,
   "product": "nativos-softclipper",
   "channel": "stable",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "notes": [
-    "Added compact Input Gain and Output Gain knobs beneath the existing meters.",
-    "Added genuine 16x oversampling alongside 1x, 2x, 4x and 8x.",
-    "Retains original v2.6 artwork and all existing controls, presets and settings.",
-    "Close your DAW before installing this unsigned release."
+    "Threshold is now called Soft Clip; Input Gain is now called Drive.",
+    "Meter speed choices Fast, Medium, Slow (Slow default).",
+    "Switch between dBFS sample peaks and K-weighted stereo LUFS (3s short-term or 400ms momentary).",
+    "Optional 1.5-second peak hold; no changes to the original clipping DSP or artwork.",
+    "Close DAW before installing; installers are unsigned."
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.0/NativosSoftClipper-v2.7-macOS-Unsigned.pkg",
-    "sha256": "9d7c039d946b8444f26cc19a3eb0bf72df8d4ea81237abe0d475be34f733f82f"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.1/NativosSoftClipper-v2.7.1-macOS-Unsigned.pkg",
+    "sha256": "781968515679e63cabd5fec3d5e3407c3786d5930a76bb9f987223de3e7bfdb5"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.0/NativosSoftClipper-v2.7-Windows-Unsigned-Setup.exe",
-    "sha256": "7de2a40d860d004f59384ac7cf1d4165cbda9655073d1c44b7a995816998aa1b"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.7.1/NativosSoftClipper-v2.7.1-Windows-Unsigned-Setup.exe",
+    "sha256": "1ffd3d806c913fbc7158a7c30050911e7e9ddeb4444d870c51e7bd618c5431b9"
   }
 }
