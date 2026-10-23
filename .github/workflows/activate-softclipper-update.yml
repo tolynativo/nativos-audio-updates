@@ -1,0 +1,80 @@
+name: Activate Nativos Soft Clipper public update feed
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish_feed:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'v2.6.0'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v2.6.0
+      MAC_NAME: NativosSoftClipper-v2.6-macOS-Unsigned.pkg
+      WIN_NAME: NativosSoftClipper-v2.6-Windows-Unsigned-Setup.exe
+    steps:
+      - name: Validate that the approved release is publicly available
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease > release-status.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open("release-status.json"))
+          if r['isDraft'] or r['isPrerelease']:
+              raise SystemExit("Release must be published, not a draft or pre-release")
+          PY
+      - name: Download the exact approved installer files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir installers
+          test -s "installers/$MAC_NAME"
+          test -s "installers/$WIN_NAME"
+      - name: Generate checksum-verified customer update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          tag=os.environ["TAG"]
+          root="https://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/releases/download/"+tag+"/"
+          def installer(key):
+              name=os.environ[key]
+              p=Path("installers") / name
+              if p.stat().st_size < 1_000_000:
+                  raise ValueError("Unexpectedly small release installer: "+name)
+              return {"url":root+name, "sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
+          data={
+              "schema":1, "product":"nativos-softclipper", "channel":"stable",
+              "version":"2.6.0",
+              "notes":[
+                  "New Reference 701 and Precision 128 clean-converter-inspired presets.",
+                  "Updated factory preset labels with original Nativos Audio names.",
+                  "Existing controls, preset saving, and update checker retained.",
+                  "Close your DAW before installing this unsigned release."
+              ],
+              "macos":installer("MAC_NAME"), "windows":installer("WIN_NAME")
+          }
+          Path("stable.json").write_text(json.dumps(data, indent=2)+"\n")
+          print("Verified public installer sizes and created stable.json")
+          PY
+      - name: Publish stable.json to the public main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="updates/softclipper/stable.json"
+          old_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path" --jq '.sha' 2>/dev/null || true)"
+          encoded="$(base64 -w0 stable.json)"
+          args=(-f "message=Activate approved Nativos Soft Clipper 2.6.0 update feed" -f "content=$encoded" -f "branch=main")
+          if [[ -n "$old_sha" ]]; then args+=(-f "sha=$old_sha"); fi
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" "${args[@]}" >/dev/null
+          echo "Update feed published successfully."
