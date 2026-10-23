@@ -1,0 +1,38 @@
+name: Prepare Nativos Soft Clipper v2.7 draft for installer upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-softclipper-v27-draft.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare_draft:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create a private draft; do not notify customers yet
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.7.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v2.7.0 release exists; leaving it unchanged."
+            exit 0
+          fi
+          cat > release-notes.txt <<'EOF'
+          Nativos Soft Clipper v2.7.0
+
+          - Added small Input Gain and Output Gain controls beneath their matching meters.
+          - Both trim controls support -24 to +24 dB, typed values, automation, preset recall and Undo/Redo.
+          - Added 16x oversampling in addition to 1x, 2x, 4x and 8x.
+          - Kept the original v2.6 skin, main knobs, mode names, artist signature and update controls.
+          - Mac VST3/AU and Windows VST3 installers are unsigned; close your DAW before updating.
+          EOF
+          gh release create v2.7.0 --repo "$GITHUB_REPOSITORY" --target main \
+            --draft --title "Nativos Soft Clipper v2.7.0" --notes-file release-notes.txt
+          echo "Draft release prepared. Upload TWO approved installers and Publish release to activate its update feed."
