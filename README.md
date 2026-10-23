@@ -12,7 +12,7 @@ This is the **public download and update-information repository** for Nativos Au
 
 ## How releases are published
 
-Installers are built and reviewed in the **private** NativosOptoOne repository. A controlled GitHub Actions release job publishes the approved Mac/Windows installers and their SHA-256 checksums here. See [release setup](RELEASING.md).
+Installers are built and reviewed in the **private** NativosOptoOne repository. For the first release, the approved Mac and Windows installers can be uploaded using GitHub's **Releases** page without creating another access token. A workflow in this **public** repository then publishes the SHA-256-verified stable update feed using GitHub's built-in permissions. See [simple release instructions](RELEASING.md).
 
 No plugin source, signing identities, or private credentials belong in this public repository.
 
