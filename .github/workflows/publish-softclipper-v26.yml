@@ -1,0 +1,59 @@
+name: Publish approved Soft Clipper v2.6
+
+on:
+  push:
+    branches: [release-staging-v2.6]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/release-staging-v2.6'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check approved v2.6 assets and prepare stable update feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          macfile="$(find release-assets -maxdepth 1 -type f -name '*v2.6*.pkg' -print -quit)"
+          winfile="$(find release-assets -maxdepth 1 -type f -name '*v2.6*.exe' -print -quit)"
+          test -s "$macfile" && test -s "$winfile"
+          test -s release-assets/RELEASE_NOTES.md
+          export MACFILE="$macfile" WINFILE="$winfile"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          def entry(path):
+              p=Path(path)
+              assert p.stat().st_size > 1024*1024, p
+              return {'url': 'https://github.com/tolynativo/nativos-audio-updates/releases/download/v2.6.0/'+p.name,
+                      'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
+          notes=Path('release-assets/RELEASE_NOTES.md').read_text().splitlines()
+          doc={'schema':1,'product':'nativos-softclipper','channel':'stable','version':'2.6.0',
+               'notes':[s.strip(' -') for s in notes if s.strip()][:12],
+               'macos':entry(os.environ['MACFILE']),'windows':entry(os.environ['WINFILE'])}
+          Path('release-assets/stable.json').write_text(json.dumps(doc,indent=2)+'\n')
+          PY
+      - name: Publish public Mac and Windows releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.6.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.6.0 release-assets/*.pkg release-assets/*.exe --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create v2.6.0 release-assets/*.pkg release-assets/*.exe \
+              --repo "$GITHUB_REPOSITORY" --title 'Nativos Soft Clipper v2.6.0' \
+              --notes-file release-assets/RELEASE_NOTES.md
+          fi
+          path='updates/softclipper/stable.json'
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path" --jq '.sha' 2>/dev/null || true)"
+          encoded="$(base64 -w0 release-assets/stable.json)"
+          args=(-f 'message=Publish approved Soft Clipper 2.6.0 update' -f "content=$encoded" -f 'branch=main')
+          if [[ -n "$sha" ]]; then args+=(-f "sha=$sha"); fi
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" "${args[@]}" >/dev/null
+          echo 'Public release and stable manifest published.'
