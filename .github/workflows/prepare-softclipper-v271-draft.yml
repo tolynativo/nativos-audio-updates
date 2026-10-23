@@ -1,0 +1,38 @@
+name: Prepare Nativos Soft Clipper v2.7.1 draft for installer upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-softclipper-v271-draft.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare_draft:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create a private draft; do not notify customers yet
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v2.7.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v2.7.1 release exists; leaving it unchanged."
+            exit 0
+          fi
+          cat > release-notes.txt <<'EOF'
+          Nativos Soft Clipper v2.7.1
+
+          - Renamed Threshold to Soft Clip and Input Gain to Drive without changing DSP.
+          - Added meter release speed choices: Fast, Medium, Slow (default Slow).
+          - Added dBFS / K-weighted stereo LUFS with 400ms Momentary or 3s Short-Term measurement.
+          - Optional peak hold. Preserves original artwork, all presets, 16x oversampling and audio quality.
+          - Mac VST3/AU and Windows VST3 installers are unsigned; close your DAW before updating.
+          EOF
+          gh release create v2.7.1 --repo "$GITHUB_REPOSITORY" --target main \
+            --draft --title "Nativos Soft Clipper v2.7.1" --notes-file release-notes.txt
+          echo "Draft release prepared. Upload TWO approved installers and Publish release to activate its update feed."
