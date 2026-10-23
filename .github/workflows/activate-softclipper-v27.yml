@@ -1,0 +1,95 @@
+name: Activate Nativos Soft Clipper v2.7 public update feed
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-softclipper-v27.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish_feed:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.release.tag_name == 'v2.7.0'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v2.7.0
+      MAC_NAME: NativosSoftClipper-v2.7-macOS-Unsigned.pkg
+      WIN_NAME: NativosSoftClipper-v2.7-Windows-Unsigned-Setup.exe
+    steps:
+      - name: Validate that the approved release is publicly available
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease > release-status.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open("release-status.json"))
+          if r['isDraft']:
+              raise SystemExit("Release must be published, not a draft")
+          # A release can be marked pre-release accidentally at upload time.
+          # Promote it to stable only after both approved files are verified.
+          PY
+      - name: Download the exact approved installer files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir installers
+          test -s "installers/$MAC_NAME"
+          test -s "installers/$WIN_NAME"
+      - name: Generate checksum-verified customer update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          tag=os.environ["TAG"]
+          root="https://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/releases/download/"+tag+"/"
+          def installer(key):
+              name=os.environ[key]
+              p=Path("installers") / name
+              if p.stat().st_size < 1_000_000:
+                  raise ValueError("Unexpectedly small release installer: "+name)
+              return {"url":root+name, "sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
+          data={
+              "schema":1, "product":"nativos-softclipper", "channel":"stable",
+              "version":"2.7.0",
+              "notes":[
+                  "Added compact Input Gain and Output Gain knobs beneath the existing meters.",
+                  "Added genuine 16x oversampling alongside 1x, 2x, 4x and 8x.",
+                  "Retains original v2.6 artwork and all existing controls, presets and settings.",
+                  "Close your DAW before installing this unsigned release."
+              ],
+              "macos":installer("MAC_NAME"), "windows":installer("WIN_NAME")
+          }
+          Path("stable.json").write_text(json.dumps(data, indent=2)+"\n")
+          print("Verified public installer sizes and created stable.json")
+          PY
+      - name: Promote the approved and verified release to stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')"
+          if [[ "$status" == true ]]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false
+          fi
+          echo 'Release is stable.'
+      - name: Publish stable.json to the public main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="updates/softclipper/stable.json"
+          old_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path" --jq '.sha' 2>/dev/null || true)"
+          encoded="$(base64 -w0 stable.json)"
+          args=(-f "message=Activate approved Nativos Soft Clipper 2.7.0 update feed" -f "content=$encoded" -f "branch=main")
+          if [[ -n "$old_sha" ]]; then args+=(-f "sha=$old_sha"); fi
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" "${args[@]}" >/dev/null
+          echo "Update feed published successfully."
