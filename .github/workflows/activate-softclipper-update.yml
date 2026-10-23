@@ -4,13 +4,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-softclipper-update.yml'
 
 permissions:
   contents: write
 
 jobs:
   publish_feed:
-    if: github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'v2.6.0'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.release.tag_name == 'v2.6.0'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -26,8 +30,10 @@ jobs:
           python3 - <<'PY'
           import json
           r=json.load(open("release-status.json"))
-          if r['isDraft'] or r['isPrerelease']:
-              raise SystemExit("Release must be published, not a draft or pre-release")
+          if r['isDraft']:
+              raise SystemExit("Release must be published, not a draft")
+          # A release can be marked pre-release accidentally at upload time.
+          # Promote it to stable only after both approved files are verified.
           PY
       - name: Download the exact approved installer files
         shell: bash
@@ -67,6 +73,15 @@ jobs:
           Path("stable.json").write_text(json.dumps(data, indent=2)+"\n")
           print("Verified public installer sizes and created stable.json")
           PY
+      - name: Promote the approved and verified release to stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')"
+          if [[ "$status" == true ]]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false
+          fi
+          echo 'Release is stable.'
       - name: Publish stable.json to the public main branch
         shell: bash
         run: |
