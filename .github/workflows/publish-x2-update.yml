@@ -1,0 +1,81 @@
+name: Publish X2 verified installer update feed
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Public X2 release tag to activate (for example x2-v0.7.1)"
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: ${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'x2-v')) || (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'x2-v')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download approved public installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          mkdir -p /tmp/x2-release
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" \
+            --pattern "*-macOS-UNSIGNED.pkg" --pattern "*Windows-x64-Setup.exe" \
+            --dir /tmp/x2-release
+      - name: Verify sizes and publish exact checksums
+        env:
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["TAG"]
+          base = pathlib.Path("/tmp/x2-release")
+          macs = list(base.glob("*-macOS-UNSIGNED.pkg"))
+          wins = list(base.glob("*Windows-x64-Setup.exe"))
+          if len(macs) != 1 or len(wins) != 1:
+              raise SystemExit("Expected exactly one Mac PKG and one Windows EXE.")
+          version = tag.removeprefix("x2-v")
+          if not version or not all(part.isdigit() for part in version.split(".")):
+              raise SystemExit("Invalid semantic version")
+          files = {}
+          for platform, path in [("macos",macs[0]),("windows",wins[0])]:
+              if path.stat().st_size < 3_000_000:
+                  raise SystemExit(f"{path.name} is suspiciously small")
+              files[platform] = {
+                "url": f"https://github.com/{repo}/releases/download/{tag}/{path.name}",
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest()
+              }
+          feed = {
+             "schema": 1,
+             "product": "x2-compressor",
+             "channel": "stable",
+             "version": version,
+             "published": True,
+             "notes": [
+                 "Download the installer directly in X2 Settings > Updates.",
+                 "Mac includes VST3 and AU; Windows includes VST3.",
+                 "Close the DAW before installing the update.",
+                 "Unsigned test installers may produce operating-system security warnings."
+             ],
+             **files
+          }
+          out = pathlib.Path("updates/x2/stable.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(feed, indent=2) + "\n")
+          print(out.read_text())
+          PY
+      - name: Commit update feed
+        run: |
+          git config user.name "Nativos Audio Updates"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/x2/stable.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish verified X2 installer update feed for ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}"
+            git push origin main
+          fi
