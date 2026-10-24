@@ -1,0 +1,86 @@
+name: Publish X2 v0.9.9 customer installers
+on:
+  push:
+    paths:
+      - .github/workflows/publish-x2-v099-customer.yml
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MAC_ARCHIVE_URL: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-a764-81f5-aa90-4f36d25c5439/raw?se=2026-10-24T22%3A40%3A07Z&sp=r&sv=2026-02-06&sr=b&scid=585920d4-d711-5d9a-947b-b176e9f4d99f&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-24T15%3A54%3A28Z&ske=2026-10-25T15%3A54%3A28Z&sks=b&skv=2026-02-06&sig=WRzj1G7GC8kRZebDQeYWlYKKIFSND/uTNSI0EzydoKM%3D"
+      WINDOWS_ARCHIVE_URL: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-a6d0-81f5-a0dc-5e74fb440c3a/raw?se=2026-10-24T22%3A40%3A06Z&sp=r&sv=2026-02-06&sr=b&scid=73cfcd7e-5536-53d5-a9b8-7c28c97e0343&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-24T19%3A24%3A04Z&ske=2026-10-25T19%3A24%3A04Z&sks=b&skv=2026-02-06&sig=eHYVfTI3euUcoAHxO36fj3As03VVjo2b2DlRHCfewck%3D"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Transfer and verify approved Mac and Windows installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/x2-v099
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 360 --silent --show-error "$MAC_ARCHIVE_URL" -o /tmp/x2-v099/mac-build.zip
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 360 --silent --show-error "$WINDOWS_ARCHIVE_URL" -o /tmp/x2-v099/windows-build.zip
+          unzip -t /tmp/x2-v099/mac-build.zip >/dev/null
+          unzip -t /tmp/x2-v099/windows-build.zip >/dev/null
+          MAC="X2-Compressor-Nativos-Music-Audio-v0.9.9-macOS-UNSIGNED.pkg"
+          WIN="X2-Compressor-Nativos-Music-Audio-v0.9.9-Windows-x64-Setup.exe"
+          unzip -j /tmp/x2-v099/mac-build.zip "$MAC" -d /tmp/x2-v099
+          unzip -j /tmp/x2-v099/windows-build.zip "$WIN" -d /tmp/x2-v099
+          test "$(stat -c%s "/tmp/x2-v099/$MAC")" -gt 3000000
+          test "$(stat -c%s "/tmp/x2-v099/$WIN")" -gt 3000000
+          printf '%s  %s\n' "ab415968a71c0092ed59ccab31c99cef0c43e6fdabc3c57729e38d452b89f782" "/tmp/x2-v099/$MAC" | sha256sum --check
+          printf '%s  %s\n' "0a6826ea81683c67a636e70def9a126747b0807d5e42bb4053f30ffb5f28d5d1" "/tmp/x2-v099/$WIN" | sha256sum --check
+      - name: Publish verified customer release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view x2-v0.9.9 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release x2-v0.9.9 already exists; do not overwrite it blindly"
+            exit 1
+          fi
+          gh release create x2-v0.9.9 \
+            "/tmp/x2-v099/X2-Compressor-Nativos-Music-Audio-v0.9.9-macOS-UNSIGNED.pkg" \
+            "/tmp/x2-v099/X2-Compressor-Nativos-Music-Audio-v0.9.9-Windows-x64-Setup.exe" \
+            --repo "$GITHUB_REPOSITORY" --target main \
+            --title "Nativos Audio X2 Compressor v0.9.9" \
+            --notes "VU meter: exact 11 labels (-20 -10 -7 -5 -3 -2 -1 0 1 2 3), red 0-3, black negatives, clean arc, GR needle rests on zero. No DSP or other UI modifications. macOS VST3/AU and Windows VST3. Both installer packages are unsigned."
+      - name: Activate verified installer downloads inside X2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,pathlib,os
+          version="0.9.9"
+          repo=os.environ["GITHUB_REPOSITORY"]
+          root=pathlib.Path("/tmp/x2-v099")
+          mac="X2-Compressor-Nativos-Music-Audio-v0.9.9-macOS-UNSIGNED.pkg"
+          win="X2-Compressor-Nativos-Music-Audio-v0.9.9-Windows-x64-Setup.exe"
+          base=f"https://github.com/{repo}/releases/download/x2-v{version}/"
+          sha=lambda name:hashlib.sha256((root/name).read_bytes()).hexdigest()
+          feed={
+            "schema":1,"product":"x2-compressor","channel":"stable",
+            "published":True,"version":version,
+            "notes":[
+              "Clean 11-number VU scale (-20,-10,-7,-5,-3,-2,-1,0,1,2,3).",
+              "Negative labels black; zero through 3 red; GR needle rests at 0 without reduction.",
+              "Compressor DSP, other controls and UI unchanged.",
+              "Mac installs VST3/AU; Windows installs VST3.",
+              "Close DAW before installing. Packages are unsigned."
+            ],
+            "macos":{"url":base+mac,"sha256":sha(mac)},
+            "windows":{"url":base+win,"sha256":sha(win)}
+          }
+          path=pathlib.Path("updates/x2/stable.json")
+          path.parent.mkdir(parents=True,exist_ok=True)
+          path.write_text(json.dumps(feed,indent=2)+"\n")
+          print("Ready to offer X2 v0.9.9 via in-plugin updater")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/x2/stable.json
+          git commit -m "Publish X2 v0.9.9 verified Mac and Windows updater feed"
+          git push origin main
