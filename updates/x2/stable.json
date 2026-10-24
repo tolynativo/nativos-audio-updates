@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "product": "x2-compressor",
+  "channel": "stable",
+  "version": "0.7.1",
+  "published": false,
+  "notes": [
+    "X2 uses a direct in-plugin installer downloader with SHA-256 verification.",
+    "No X2 installers have been published to this feed yet."
+  ],
+  "macos": { "url": "", "sha256": "" },
+  "windows": { "url": "", "sha256": "" }
+}
