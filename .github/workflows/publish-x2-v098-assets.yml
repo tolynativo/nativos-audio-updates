@@ -1,94 +1,30 @@
-name: Publish X2 v0.9.8 Direct Installer Updates
+name: Verify X2 Public Download Feed
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-x2-v098-assets.yml'
+  workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: x2-v0.9.8
-      MAC_ARCHIVE: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-7ae8-81f5-927f-0059ad2db1f2/raw?se=2026-10-24T22%3A24%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=ce06b17c-8671-5bd4-b84b-8a2705329fc3&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-24T03%3A17%3A34Z&ske=2026-10-25T03%3A17%3A34Z&sks=b&skv=2026-02-06&sig=6bJL8jVdQOi99nx/edh9E2e9wRyK/V5f2PK2kiSXjVQ%3D"
-      WIN_ARCHIVE: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-0ba4-81f5-81e5-9eed2f524382/raw?se=2026-10-24T22%3A24%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=8bd9340f-71ed-55f7-a679-af87f982d975&skoid=2757bbe4-5137-4324-975b-acedc0bad279&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-24T19%3A24%3A04Z&ske=2026-10-25T19%3A24%3A04Z&sks=b&skv=2026-02-06&sig=8xqqtClw0CE2/IGPNGULuUH8FLXan7bqzQfTtOiynWM%3D"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-      - name: Retrieve the exact GitHub Actions approved Mac and Windows artifacts
+      - name: Verify both public v0.9.8 installers exist
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240 --silent --show-error "$MAC_ARCHIVE" -o /tmp/x2-mac.zip
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240 --silent --show-error "$WIN_ARCHIVE" -o /tmp/x2-win.zip
-          test "$(stat -c%s /tmp/x2-mac.zip)" -gt 10000000
-          test "$(stat -c%s /tmp/x2-win.zip)" -gt 5000000
-      - name: Extract and validate exactly the two X2 v0.9.8 installer binaries
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          cases=[
-            ('/tmp/x2-mac.zip','X2-Compressor-Nativos-Music-Audio-v0.9.8-macOS-UNSIGNED.pkg',b'xar!'),
-            ('/tmp/x2-win.zip','X2-Compressor-Nativos-Music-Audio-v0.9.8-Windows-x64-Setup.exe',b'MZ')]
-          out=Path('x2-release');out.mkdir(exist_ok=True)
-          for archive,filename,magic in cases:
-              with zipfile.ZipFile(archive) as z:
-                  assert z.testzip() is None
-                  selected=[i for i in z.infolist() if not i.is_dir() and Path(i.filename).name==filename]
-                  if len(selected)!=1:raise ValueError('Exactly one approved installer required: '+filename)
-                  b=z.read(selected[0])
-              if len(b)<3000000 or not b.startswith(magic):
-                  raise ValueError('Invalid installer signature or size: '+filename)
-              (out/filename).write_bytes(b)
-              print('Installer validated:',filename,len(b))
-          PY
-      - name: Create publicly downloadable X2 v0.9.8 release
-        shell: bash
-        run: |
-          set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" x2-release/*.pkg x2-release/*.exe --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$TAG" x2-release/*.pkg x2-release/*.exe --repo "$GITHUB_REPOSITORY" --title 'X2 Compressor v0.9.8 — Nativos Audio' --notes 'Mac AU and VST3, Windows VST3. Simplified seven-number analog VU scale. SHA-256-verified direct installer downloads available inside X2 Settings > Updates. Unsigned beta installers; close DAW before installation.'
-          fi
-      - name: Verify release assets and create integrity-checked public update feed
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > /tmp/x2-assets.txt
+          gh release view x2-v0.9.8 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > /tmp/x2-assets.txt
           grep -Fxq 'X2-Compressor-Nativos-Music-Audio-v0.9.8-macOS-UNSIGNED.pkg' /tmp/x2-assets.txt
           grep -Fxq 'X2-Compressor-Nativos-Music-Audio-v0.9.8-Windows-x64-Setup.exe' /tmp/x2-assets.txt
           python3 - <<'PY'
-          import json,hashlib
-          from pathlib import Path
-          base='https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.8/'
-          root=Path('x2-release')
-          mac='X2-Compressor-Nativos-Music-Audio-v0.9.8-macOS-UNSIGNED.pkg'
-          win='X2-Compressor-Nativos-Music-Audio-v0.9.8-Windows-x64-Setup.exe'
-          item=lambda n:{'url':base+n,'sha256':hashlib.sha256((root/n).read_bytes()).hexdigest()}
-          feed={'schema':1,'product':'x2-compressor','channel':'stable','published':True,
-                'version':'0.9.8',
-                'notes':['Seven-number uncluttered VU scale.','GR needle rests at zero without gain reduction.',
-                         'No compressor audio DSP changes.','Mac AU/VST3 and Windows VST3.',
-                         'Close your DAW before installing unsigned packages.'],
-                'macos':item(mac),'windows':item(win)}
-          f=Path('updates/x2/stable.json');f.parent.mkdir(parents=True,exist_ok=True)
-          f.write_text(json.dumps(feed,indent=2)+'\n')
-          print('Verified Mac and Windows installers; SHA-256 feed prepared')
+          import json,pathlib
+          feed=json.loads(pathlib.Path("updates/x2/stable.json").read_text())
+          assert feed["product"]=="x2-compressor"
+          assert feed["published"] is True and feed["version"]=="0.9.8"
+          for key,suffix in (("macos",".pkg"),("windows",".exe")):
+              assert feed[key]["url"].startswith("https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.8/")
+              assert feed[key]["url"].endswith(suffix)
+              assert len(feed[key]["sha256"])==64
+          print("Verified X2 v0.9.8 published update manifest and release entries.")
           PY
-      - name: Activate X2 in-plugin download feed
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'Nativos Audio Updates'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add updates/x2/stable.json
-          if ! git diff --cached --quiet; then
-            git commit -m 'Publish X2 v0.9.8 Mac and Windows direct installer update feed'
-            git push origin main
-          fi
