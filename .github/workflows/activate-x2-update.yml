@@ -1,0 +1,61 @@
+name: Activate X2 public installer updates
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published X2 release tag (e.g. x2-v0.9.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify both customer installers and write X2 update feed
+        shell: bash
+        env:
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "${TAG}" =~ ^x2-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not an X2 version release"; exit 0; }
+          VERSION="${TAG#x2-v}"
+          MAC="X2-Compressor-Nativos-Music-Audio-v${VERSION}-macOS-UNSIGNED.pkg"
+          WIN="X2-Compressor-Nativos-Music-Audio-v${VERSION}-Windows-x64-Setup.exe"
+          BASE="https://github.com/tolynativo/nativos-audio-updates/releases/download/${TAG}"
+          mkdir -p /tmp/x2-release updates/x2
+          curl --fail --location --retry 3 --silent --show-error "${BASE}/${MAC}" -o "/tmp/x2-release/${MAC}"
+          curl --fail --location --retry 3 --silent --show-error "${BASE}/${WIN}" -o "/tmp/x2-release/${WIN}"
+          test "$(stat -c%s "/tmp/x2-release/${MAC}")" -gt 3000000
+          test "$(stat -c%s "/tmp/x2-release/${WIN}")" -gt 3000000
+          python3 - <<'PY'
+          import hashlib,os,json,pathlib
+          tag=os.environ["TAG"]
+          version=tag[4:]
+          root=pathlib.Path("/tmp/x2-release")
+          mac=f"X2-Compressor-Nativos-Music-Audio-v{version}-macOS-UNSIGNED.pkg"
+          win=f"X2-Compressor-Nativos-Music-Audio-v{version}-Windows-x64-Setup.exe"
+          base=f"https://github.com/tolynativo/nativos-audio-updates/releases/download/{tag}/"
+          sha=lambda n:hashlib.sha256((root/n).read_bytes()).hexdigest()
+          feed={"product":"x2-compressor","version":version,
+                "macos":{"url":base+mac,"sha256":sha(mac)},
+                "windows":{"url":base+win,"sha256":sha(win)},
+                "release_notes":"X2 controls, meter and update download improvements."}
+          pathlib.Path("updates/x2/stable.json").write_text(json.dumps(feed,indent=2)+"\n")
+          print("Verified X2 release:",version)
+          PY
+      - name: Publish public X2 feed
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/x2/stable.json
+          if git diff --cached --quiet; then
+            echo "Feed unchanged"
+          else
+            git commit -m "Publish verified X2 installer update feed"
+            git push
+          fi
