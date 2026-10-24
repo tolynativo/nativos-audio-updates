@@ -3,20 +3,20 @@
   "product": "x2-compressor",
   "channel": "stable",
   "published": true,
-  "version": "0.9.8",
+  "version": "0.9.9",
   "notes": [
-    "Seven-number uncluttered VU scale.",
-    "GR needle rests at zero without gain reduction.",
-    "No compressor audio DSP changes.",
-    "Mac AU/VST3 and Windows VST3.",
-    "Close your DAW before installing unsigned packages."
+    "Clean 11-number VU scale (-20,-10,-7,-5,-3,-2,-1,0,1,2,3).",
+    "Negative labels black; zero through 3 red; GR needle rests at 0 without reduction.",
+    "Compressor DSP, other controls and UI unchanged.",
+    "Mac installs VST3/AU; Windows installs VST3.",
+    "Close DAW before installing. Packages are unsigned."
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.8/X2-Compressor-Nativos-Music-Audio-v0.9.8-macOS-UNSIGNED.pkg",
-    "sha256": "2135e8058af3c0c293459a9ce0d67bd6b90de17d54cc53b43da4a1604b3a9a28"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.9/X2-Compressor-Nativos-Music-Audio-v0.9.9-macOS-UNSIGNED.pkg",
+    "sha256": "ab415968a71c0092ed59ccab31c99cef0c43e6fdabc3c57729e38d452b89f782"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.8/X2-Compressor-Nativos-Music-Audio-v0.9.8-Windows-x64-Setup.exe",
-    "sha256": "14c4b0d51329ea7a9fba7080909b388468646dde1ca9d997706a0632419e7d79"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/x2-v0.9.9/X2-Compressor-Nativos-Music-Audio-v0.9.9-Windows-x64-Setup.exe",
+    "sha256": "0a6826ea81683c67a636e70def9a126747b0807d5e42bb4053f30ffb5f28d5d1"
   }
 }
