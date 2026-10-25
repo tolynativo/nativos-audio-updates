@@ -1,0 +1,54 @@
+name: Publish String Kingz v1.1.0 Mac update
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'updates/stringkingz/publish-request-v11.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FILE: StringKingz-1.1.0-macOS-Universal-UNSIGNED.pkg
+      TAG: stringkingz-v1.1.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified macOS artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_url="$(cat updates/stringkingz/publish-request-v11.txt)"
+          [[ "$source_url" == https://* ]] || { echo 'Invalid source URL'; exit 1; }
+          curl -fL --retry 3 --max-time 180 "$source_url" -o /tmp/stringkingz-ci.zip
+          unzip -q /tmp/stringkingz-ci.zip -d /tmp/stringkingz-release
+          test -s "/tmp/stringkingz-release/$FILE"
+          size=$(stat -c %s "/tmp/stringkingz-release/$FILE")
+          (( size > 1000000 )) || { echo "Installer unexpectedly small: $size"; exit 1; }
+          sha256sum "/tmp/stringkingz-release/$FILE"
+      - name: Publish public customer download and update feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="/tmp/stringkingz-release/$FILE"
+          hash="$(sha256sum "$pkg" | awk '{print $1}')"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$pkg" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$pkg" --repo "$GITHUB_REPOSITORY" \
+              --title "String Kingz 1.1.0 — Nativos Audio (macOS VST3 + AU)" \
+              --notes "Unsigned Mac installer, universal Apple Silicon/Intel. Contains original approved String Kingz UI artwork, updated orchestral-inspired synth presets and the new evolving Pads engine. Close your DAW before installing. Not yet notarized or DAW-qualified; intended for testing."
+          fi
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$FILE"
+          mkdir -p updates/stringkingz
+          printf '{"version":"1.1.0","macos":{"url":"%s","sha256":"%s"},"notes":"Approved artwork, distinct pads, string engines, preset FX; unsigned Mac VST3+AU QA build."}\n' "$url" "$hash" > updates/stringkingz/stable.json
+          rm -f updates/stringkingz/publish-request-v11.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/stringkingz/stable.json updates/stringkingz/publish-request-v11.txt
+          git commit -m "Publish String Kingz 1.1.0 public update feed"
+          git push
+          echo "Installer published: $url"
