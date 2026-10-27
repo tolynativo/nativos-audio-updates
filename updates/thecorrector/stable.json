@@ -3,7 +3,7 @@
   "product": "the-corrector",
   "channel": "development",
   "published": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "notes": [
     "Manual note edits now affect playback",
     "Multi-select, octave \u00b112, double-click seek",
@@ -11,11 +11,11 @@
     "Unsigned developer builds: close DAW before installing"
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.7.0/The-Corrector-v0.7.0-macOS-UNSIGNED.pkg",
-    "sha256": "b6f916ee71c51460a44fac9f2f5a6a52fc2c2fc9c691eb456d8a8314edc2450a"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.8.0/The-Corrector-v0.8.0-macOS-UNSIGNED.pkg",
+    "sha256": "131dd0e595314aa5f0073844a424a87289d1477bda79c0cda374c149090c4398"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.7.0/The-Corrector-v0.7.0-Windows-x64-UNSIGNED-Setup.exe",
-    "sha256": "2565514e1455315f4818a936686f4ee6ec756953e0dd1ef6b887701b977e4b50"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.8.0/The-Corrector-v0.8.0-Windows-x64-UNSIGNED-Setup.exe",
+    "sha256": "d481a0275e2557e0d221be684ece5b9055e67a7b59ab9833460479f8f06c2422"
   }
 }
