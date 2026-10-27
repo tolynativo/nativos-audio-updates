@@ -1,0 +1,41 @@
+name: Prepare The Corrector v0.7.0 installer draft
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-corrector-v070-draft.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create draft release without activating customer updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="corrector-v0.7.0"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release exists; no changes."
+            exit 0
+          fi
+          cat > notes.txt <<'EOF'
+          The Corrector v0.7.0 — Development preview
+
+          Manual note drag pitch, automatic render after edits, double-click
+          playback from marker, Shift / Cmd / Ctrl multi-note selection, +/-12
+          octave movement, vibrato line tool and slanted-X tool indicator.
+
+          Mac universal VST3 and AU; Windows x64 VST3.
+          These are unsigned development builds, not yet DAW-validated.
+
+          Upload BOTH exact installer files and publish:
+          - The-Corrector-v0.7.0-macOS-UNSIGNED.pkg
+          - The-Corrector-v0.7.0-Windows-x64-UNSIGNED-Setup.exe
+          The public activation workflow will verify both SHA-256 digests.
+          EOF
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target main \
+            --draft --title "The Corrector v0.7.0" --notes-file notes.txt
