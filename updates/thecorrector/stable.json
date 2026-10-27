@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "product": "the-corrector",
+  "channel": "stable",
+  "published": false,
+  "version": "0.1.0",
+  "notes": [
+    "Development build only; no approved installer published yet.",
+    "Mac: VST3/AU; Windows: VST3.",
+    "Installers are not installed from inside an active DAW; use the verified downloaded installer."
+  ],
+  "macos": null,
+  "windows": null
+}
