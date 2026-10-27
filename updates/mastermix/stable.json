@@ -2,15 +2,15 @@
   "schema": 1,
   "product": "mastermix",
   "channel": "stable",
-  "published": false,
-  "version": "1.2.0",
-  "notes": "The in-plugin updater is enabled, but no publicly downloadable verified 1.2.0 package is published yet. Published future releases require HTTPS URLs and exact SHA-256 checksums.",
+  "published": true,
+  "version": "1.3.1",
+  "notes": "Full in-plugin manual; LOUD stereo limiter and OUT ceiling; close DAW before updating.",
   "macos": {
-    "url": "",
-    "sha256": ""
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/mastermix-v1.3.1/MasterMix-1.3.1-macOS.pkg",
+    "sha256": "9c6a4d5ff2eeb0389f5f06907b772c2d9b7d41c9497c7a21b61bcce981f677cb"
   },
   "windows": {
-    "url": "",
-    "sha256": ""
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/mastermix-v1.3.1/MasterMix-1.3.1-Windows-x64-Setup.exe",
+    "sha256": "05f28da346b150d1969d1d39a6a1e6d3e3fcc568d73ba4bac04e3ac38965547d"
   }
 }
