@@ -1,14 +1,21 @@
 {
   "schema": 1,
   "product": "the-corrector",
-  "channel": "stable",
-  "published": false,
-  "version": "0.1.0",
+  "channel": "development",
+  "published": true,
+  "version": "0.7.0",
   "notes": [
-    "Development build only; no approved installer published yet.",
-    "Mac: VST3/AU; Windows: VST3.",
-    "Installers are not installed from inside an active DAW; use the verified downloaded installer."
+    "Manual note edits now affect playback",
+    "Multi-select, octave \u00b112, double-click seek",
+    "Vibrato line/X tool",
+    "Unsigned developer builds: close DAW before installing"
   ],
-  "macos": null,
-  "windows": null
+  "macos": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.7.0/The-Corrector-v0.7.0-macOS-UNSIGNED.pkg",
+    "sha256": "b6f916ee71c51460a44fac9f2f5a6a52fc2c2fc9c691eb456d8a8314edc2450a"
+  },
+  "windows": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.7.0/The-Corrector-v0.7.0-Windows-x64-UNSIGNED-Setup.exe",
+    "sha256": "2565514e1455315f4818a936686f4ee6ec756953e0dd1ef6b887701b977e4b50"
+  }
 }
