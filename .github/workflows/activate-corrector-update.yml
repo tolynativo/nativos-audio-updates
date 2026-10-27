@@ -1,0 +1,73 @@
+name: Activate The Corrector v0.7.0 in-plugin installer updates
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published Corrector release (corrector-v0.7.0)"
+        required: true
+        default: "corrector-v0.7.0"
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'corrector-v')
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Check both public installers and calculate SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^corrector-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          VERSION="$(echo "$TAG" | cut -c 12-)"
+          MAC="The-Corrector-v$VERSION-macOS-UNSIGNED.pkg"
+          WIN="The-Corrector-v$VERSION-Windows-x64-UNSIGNED-Setup.exe"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "MAC=$MAC" >> "$GITHUB_ENV"
+          echo "WIN=$WIN" >> "$GITHUB_ENV"
+          mkdir -p /tmp/corrector-verified
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$MAC" -p "$WIN" -D /tmp/corrector-verified
+          test "$(stat -c%s "/tmp/corrector-verified/$MAC")" -gt 3000000
+          test "$(stat -c%s "/tmp/corrector-verified/$WIN")" -gt 1000000
+          sha256sum /tmp/corrector-verified/*
+      - name: Write public stable.json (direct download, not a GitHub page)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,json,hashlib,pathlib
+          version=os.environ["VERSION"]
+          repo=os.environ["GITHUB_REPOSITORY"]
+          tag=os.environ["TAG"]
+          prefix="https://github.com/"+repo+"/releases/download/"+tag+"/"
+          root=pathlib.Path("/tmp/corrector-verified")
+          mac=os.environ["MAC"]
+          win=os.environ["WIN"]
+          data={
+            "schema":1,"product":"the-corrector","channel":"stable","published":True,
+            "version":version,
+            "notes":["Fixed manually moved notes and selected-group octave edits",
+                     "New scrub-to-position and per-note vibrato-line tool",
+                     "Mac VST3/AU and Windows VST3 installers; close DAW before installing"],
+            "macos":{"url":prefix+mac,"sha256":hashlib.sha256((root/mac).read_bytes()).hexdigest()},
+            "windows":{"url":prefix+win,"sha256":hashlib.sha256((root/win).read_bytes()).hexdigest()}
+          }
+          dest=pathlib.Path("updates/thecorrector/stable.json")
+          dest.parent.mkdir(parents=True,exist_ok=True)
+          dest.write_text(json.dumps(data,indent=2)+"\n")
+          print("Published checksummed direct installer manifest")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/thecorrector/stable.json
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Activate The Corrector $VERSION in-plugin verified updates"
+            git push origin main
+          fi
