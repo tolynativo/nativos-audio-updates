@@ -1,0 +1,101 @@
+name: Publish Master Mix 1.3.2 gain staging fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'updates/mastermix/publish-request-v132.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: mastermix-v1.3.2
+      VERSION: 1.3.2
+      MAC: MasterMix-1.3.2-macOS.pkg
+      WIN: MasterMix-1.3.2-Windows-x64-Setup.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download and verify both approved artifact archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s updates/mastermix/publish-request-v132.json
+          mkdir -p /tmp/mm-installers /tmp/mm-zips
+          python3 - <<'PY'
+          import json,urllib.request,hashlib,zipfile,shutil
+          from pathlib import Path
+          request=json.loads(Path('updates/mastermix/publish-request-v132.json').read_text())
+          if request.get('version')!='1.3.2': raise SystemExit('Invalid release version')
+          options={
+            'macos':('installer/out/MasterMix-1.3.2-macOS.pkg','MasterMix-1.3.2-macOS.pkg'),
+            'windows':('installer/windows/Output/MasterMix-1.3.2-Windows-x64-Setup.exe','MasterMix-1.3.2-Windows-x64-Setup.exe'),
+          }
+          for platform,(inner,filename) in options.items():
+            data=request[platform]
+            url=data['source']
+            digest=data['zip_sha256']
+            if not url.startswith('https://') or len(digest)!=64: raise SystemExit('Missing approved HTTPS source')
+            print('Fetching',platform,flush=True)
+            with urllib.request.urlopen(url,timeout=180) as response:
+              archive=response.read(300_000_001)
+            if len(archive)>300_000_000: raise SystemExit('Oversized archive')
+            if hashlib.sha256(archive).hexdigest()!=digest: raise SystemExit('ZIP SHA-256 mismatch: '+platform)
+            import io
+            with zipfile.ZipFile(io.BytesIO(archive)) as z:
+              matches=[i for i in z.infolist() if i.filename==inner and not i.is_dir()]
+              if len(matches)!=1 or not (1_000_000<matches[0].file_size<300_000_000):
+                raise SystemExit('Invalid installer '+platform)
+              with z.open(matches[0]) as src,open(Path('/tmp/mm-installers')/filename,'wb') as dst:
+                shutil.copyfileobj(src,dst)
+          print('Both authenticated CI artifacts extracted and verified')
+          PY
+      - name: Publish direct HTTPS installer packages on public GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          MACPATH="/tmp/mm-installers/$MAC"
+          WINPATH="/tmp/mm-installers/$WIN"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$MACPATH" "$WINPATH" -R "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$MACPATH" "$WINPATH" -R "$GITHUB_REPOSITORY" \
+              --title "Master Mix 1.3.2 - Nativos Audio verified VST update" \
+              --notes "Mac universal VST3+AU and Windows x64 VST3. Full offline in-plugin manual, LOUD limiting with OUT ceiling, original UI retained. UNSIGNED testing installers. Close your DAW before installing."
+          fi
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          curl --fail --location --retry 2 --max-time 120 -o /dev/null "$BASE/$MAC"
+          curl --fail --location --retry 2 --max-time 120 -o /dev/null "$BASE/$WIN"
+          echo "Both packages publicly downloadable without private repository access"
+      - name: Publish public 1.3.2 manifest and remove temporary source links
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          folder=Path('/tmp/mm-installers')
+          base='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/releases/download/'+os.environ['TAG']+'/'
+          files={'macos':os.environ['MAC'],'windows':os.environ['WIN']}
+          payload={
+            'schema':1,'product':'mastermix','channel':'stable',
+            'published':True,'version':'1.3.2',
+            'notes':'Full in-plugin manual; LOUD stereo limiter and OUT ceiling; close DAW before updating.',
+          }
+          for platform,name in files.items():
+            p=folder/name
+            payload[platform]={'url':base+name,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+          Path('updates/mastermix/stable.json').write_text(json.dumps(payload,indent=2)+'\n')
+          print('Wrote verified v1.3.2 update manifest')
+          PY
+          rm -f updates/mastermix/publish-request-v132.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/mastermix/stable.json updates/mastermix/publish-request-v132.json
+          git commit -m "[skip ci] Publish Master Mix 1.3.2 verified public auto-update"
+          git push origin main
