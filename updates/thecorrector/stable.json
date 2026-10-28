@@ -3,19 +3,19 @@
   "product": "the-corrector",
   "channel": "development",
   "published": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "notes": [
-    "Separate DRIFT X and VIBRATO X tools",
-    "Edited drift and corrected pitch contour visible on every note",
-    "Smoother pitch-period alignment and guarded vocal timbre",
+    "Natural dynamics: removed per-sample gain riding",
+    "Host-synced source-matched correction without doubled vocals",
+    "Continuous DAW scan with automatic stop/seek detection",
     "Unsigned developer builds: close DAW before installing"
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.11.0/The-Corrector-v0.11.0-macOS-UNSIGNED.pkg",
-    "sha256": "0b3a62fd5a4beb3bc4b1a08ca630c912f9c06487185d247864273c1448ff5086"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.12.0/The-Corrector-v0.12.0-macOS-UNSIGNED.pkg",
+    "sha256": "14e23e35a887aafaa769666beff4cd4053635f7d481fc42e88401a29f808d2a5"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.11.0/The-Corrector-v0.11.0-Windows-x64-UNSIGNED-Setup.exe",
-    "sha256": "7430a9db8d17ffe33bb731a2d35c3a021484023de213575f81c3fecb0fc2ac2b"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.12.0/The-Corrector-v0.12.0-Windows-x64-UNSIGNED-Setup.exe",
+    "sha256": "8f8156fb5b64ff1630c0f627ea2fdd400732b087a6155ba457c222a3988326df"
   }
 }
