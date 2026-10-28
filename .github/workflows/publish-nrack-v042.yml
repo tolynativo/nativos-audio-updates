@@ -1,0 +1,79 @@
+name: Publish N Rack v0.4.2 installers and activate verified in-plugin updates
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'updates/nrack/v0.4.2/*'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nrack-v042-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: \${{ github.token }}
+      TAG: nrack-v0.4.2
+      VERSION: 0.4.2
+      MAC: N-Rack-v0.4.2-macOS-Universal-UNSIGNED.pkg
+      WIN: N-Rack-v0.4.2-Windows-x64-UNSIGNED-Setup.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify both actual installers exist before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="updates/nrack/v0.4.2"
+          test -s "$root/$MAC"
+          test -s "$root/$WIN"
+          test "$(stat -c%s "$root/$MAC")" -gt 3000000
+          test "$(stat -c%s "$root/$WIN")" -gt 1000000
+          file "$root/$MAC" "$root/$WIN"
+          sha256sum "$root/$MAC" "$root/$WIN"
+      - name: Publish public direct-download release assets without a GitHub web page in-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "updates/nrack/v0.4.2/$MAC" "updates/nrack/v0.4.2/$WIN" --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "updates/nrack/v0.4.2/$MAC" "updates/nrack/v0.4.2/$WIN" \
+              -R "$GITHUB_REPOSITORY" --title "N Rack v0.4.2 beta" --prerelease \
+              --notes "Unsigned Mac VST3/AU and Windows VST3 installers. Improved slot power, buttons, and UI alignment. Download in the plugin without opening a GitHub page."
+          fi
+      - name: Verify public release and activate checksum-verified installer feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,json,hashlib,pathlib
+          root=pathlib.Path("updates/nrack/v0.4.2")
+          tag=os.environ["TAG"]
+          repo=os.environ["GITHUB_REPOSITORY"]
+          mac=os.environ["MAC"]
+          win=os.environ["WIN"]
+          prefix=f"https://github.com/{repo}/releases/download/{tag}/"
+          data={
+            "schema":1,"product":"nrack","channel":"beta","published":True,
+            "version":os.environ["VERSION"],
+            "notes":["Verified Mac Universal VST3/AU and Windows x64 VST3 beta installers",
+                     "No browser required: check updates and download inside N Rack",
+                     "Close the DAW before installing unsigned beta updates"],
+            "macos":{"url":prefix+mac,"filename":mac,"sha256":hashlib.sha256((root/mac).read_bytes()).hexdigest()},
+            "windows":{"url":prefix+win,"filename":win,"sha256":hashlib.sha256((root/win).read_bytes()).hexdigest()}
+          }
+          dest=pathlib.Path("updates/nrack/stable.json")
+          dest.write_text(json.dumps(data,indent=2)+"\n")
+          print(dest.read_text())
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/nrack/stable.json
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Publish checksum-verified N Rack 0.4.2 in-plugin installers"
+            git push origin main
+          fi
