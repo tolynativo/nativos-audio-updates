@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'updates/nrack/v0.4.2/*'
+      - 'updates/nrack/v0.4.2/READY'
   workflow_dispatch:
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     env:
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       TAG: nrack-v0.4.2
       VERSION: 0.4.2
       MAC: N-Rack-v0.4.2-macOS-Universal-UNSIGNED.pkg
@@ -28,20 +28,23 @@ jobs:
         run: |
           set -euo pipefail
           root="updates/nrack/v0.4.2"
-          test -s "$root/$MAC"
-          test -s "$root/$WIN"
-          test "$(stat -c%s "$root/$MAC")" -gt 3000000
-          test "$(stat -c%s "$root/$WIN")" -gt 1000000
-          file "$root/$MAC" "$root/$WIN"
-          sha256sum "$root/$MAC" "$root/$WIN"
+          test -s "$root/READY"
+          mkdir -p /tmp/nrack-release
+          find "$root" -name "$MAC.b64.*" -type f | sort | xargs cat | base64 -d > "/tmp/nrack-release/$MAC"
+          find "$root" -name "$WIN.b64.*" -type f | sort | xargs cat | base64 -d > "/tmp/nrack-release/$WIN"
+          test "$(stat -c%s "/tmp/nrack-release/$MAC")" -gt 3000000
+          test "$(stat -c%s "/tmp/nrack-release/$WIN")" -gt 1000000
+          echo "559429ce1d91042b4421cb91f460e94bb18733075b265c1fdbe277e5d5688403  /tmp/nrack-release/$MAC" | sha256sum -c -
+          file "/tmp/nrack-release/$MAC" "/tmp/nrack-release/$WIN"
+          sha256sum /tmp/nrack-release/*
       - name: Publish public direct-download release assets without a GitHub web page in-plugin
         shell: bash
         run: |
           set -euo pipefail
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" "updates/nrack/v0.4.2/$MAC" "updates/nrack/v0.4.2/$WIN" --clobber -R "$GITHUB_REPOSITORY"
+            gh release upload "$TAG" "/tmp/nrack-release/$MAC" "/tmp/nrack-release/$WIN" --clobber -R "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG" "updates/nrack/v0.4.2/$MAC" "updates/nrack/v0.4.2/$WIN" \
+            gh release create "$TAG" "/tmp/nrack-release/$MAC" "/tmp/nrack-release/$WIN" \
               -R "$GITHUB_REPOSITORY" --title "N Rack v0.4.2 beta" --prerelease \
               --notes "Unsigned Mac VST3/AU and Windows VST3 installers. Improved slot power, buttons, and UI alignment. Download in the plugin without opening a GitHub page."
           fi
@@ -51,7 +54,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os,json,hashlib,pathlib
-          root=pathlib.Path("updates/nrack/v0.4.2")
+          root=pathlib.Path("/tmp/nrack-release")
           tag=os.environ["TAG"]
           repo=os.environ["GITHUB_REPOSITORY"]
           mac=os.environ["MAC"]
