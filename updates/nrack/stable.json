@@ -2,13 +2,21 @@
   "schema": 1,
   "product": "nrack",
   "channel": "beta",
-  "published": false,
+  "published": true,
   "version": "0.4.2",
   "notes": [
-    "N Rack simplified interface, operational slot power and chain buttons, no duplicated boxes",
-    "In-plugin verified installer downloads when released",
-    "macOS Universal VST3/AU and Windows VST3"
+    "Verified Mac Universal VST3/AU and Windows x64 VST3 beta installers",
+    "No browser required: check updates and download inside N Rack",
+    "Close the DAW before installing unsigned beta updates"
   ],
-  "macos": null,
-  "windows": null
+  "macos": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nrack-v0.4.2/N-Rack-v0.4.2-macOS-Universal-UNSIGNED.pkg",
+    "filename": "N-Rack-v0.4.2-macOS-Universal-UNSIGNED.pkg",
+    "sha256": "559429ce1d91042b4421cb91f460e94bb18733075b265c1fdbe277e5d5688403"
+  },
+  "windows": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nrack-v0.4.2/N-Rack-v0.4.2-Windows-x64-UNSIGNED-Setup.exe",
+    "filename": "N-Rack-v0.4.2-Windows-x64-UNSIGNED-Setup.exe",
+    "sha256": "c121059d5d1822d0130096d0f4f0c9ff7aa8556ffe4d32a9e8c1a1547033acf9"
+  }
 }
