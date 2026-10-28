@@ -35,6 +35,7 @@ jobs:
           test "$(stat -c%s "/tmp/nrack-release/$MAC")" -gt 3000000
           test "$(stat -c%s "/tmp/nrack-release/$WIN")" -gt 1000000
           echo "559429ce1d91042b4421cb91f460e94bb18733075b265c1fdbe277e5d5688403  /tmp/nrack-release/$MAC" | sha256sum -c -
+          echo "c121059d5d1822d0130096d0f4f0c9ff7aa8556ffe4d32a9e8c1a1547033acf9  /tmp/nrack-release/$WIN" | sha256sum -c -
           file "/tmp/nrack-release/$MAC" "/tmp/nrack-release/$WIN"
           sha256sum /tmp/nrack-release/*
       - name: Publish public direct-download release assets without a GitHub web page in-plugin
