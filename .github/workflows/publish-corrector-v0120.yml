@@ -1,0 +1,93 @@
+name: Publish Corrector v0.12.0 verified installer updates
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'updates/thecorrector/publish-request-v0120.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: corrector-v0.12.0
+      VERSION: 0.12.0
+      MAC: The-Corrector-v0.12.0-macOS-UNSIGNED.pkg
+      WIN: The-Corrector-v0.12.0-Windows-x64-UNSIGNED-Setup.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download signed archives, verify hashes and extract installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s updates/thecorrector/publish-request-v0120.json
+          mkdir -p /tmp/corrector-public
+          python3 - <<'PY'
+          import json,urllib.request,hashlib,zipfile,io,os,shutil
+          from pathlib import Path
+          req=json.loads(Path("updates/thecorrector/publish-request-v0120.json").read_text())
+          if req.get("version")!="0.12.0":raise SystemExit("Wrong release version")
+          for platform,filename in [("macos",os.environ["MAC"]),("windows",os.environ["WIN"])]:
+            entry=req[platform]
+            url=entry["source"]
+            checksum=entry["zip_sha256"]
+            if not url.startswith("https://") or len(checksum)!=64:
+                raise SystemExit("Invalid temporary approved artifact link/hash")
+            with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"NativosAudioRelease/1"}),timeout=150) as f:
+                data=f.read(100_000_001)
+            if len(data)>100_000_000: raise SystemExit("Artifact archive too large")
+            if hashlib.sha256(data).hexdigest()!=checksum:
+                raise SystemExit("Artifact ZIP hash mismatch on "+platform)
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                matches=[i for i in z.infolist() if i.filename==filename and not i.is_dir()]
+                if len(matches)!=1: raise SystemExit("Expected one exact "+filename)
+                if not (1_000_000<matches[0].file_size<100_000_000):
+                    raise SystemExit("Installer size outside expected range")
+                with z.open(matches[0]) as src, open(Path("/tmp/corrector-public")/filename,"wb") as out:
+                    shutil.copyfileobj(src,out)
+            print(platform,filename,hashlib.sha256((Path("/tmp/corrector-public")/filename).read_bytes()).hexdigest(),flush=True)
+          PY
+      - name: Publish direct installer assets to public release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "/tmp/corrector-public/$MAC" "/tmp/corrector-public/$WIN" \
+              --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "/tmp/corrector-public/$MAC" "/tmp/corrector-public/$WIN" \
+              --draft --title "The Corrector v0.12.0" \
+              --notes "Unsigned development update: natural vocal dynamics without auto gain riding, aligned DAW pitch correction, contiguous scanning and stereo-preserving processing."
+          fi
+          gh release edit "$TAG" --draft=false --prerelease -R "$GITHUB_REPOSITORY"
+      - name: Activate signed-hash in-plugin direct update feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,json,hashlib
+          from pathlib import Path
+          root=Path("/tmp/corrector-public")
+          base="https://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/releases/download/"+os.environ["TAG"]+"/"
+          mac=os.environ["MAC"]; win=os.environ["WIN"]
+          manifest={"schema":1,"product":"the-corrector","channel":"development",
+            "published":True,"version":os.environ["VERSION"],
+            "notes":["Natural dynamics: removed per-sample gain riding","Host-synced source-matched correction without doubled vocals",
+                     "Continuous DAW scan with automatic stop/seek detection","Unsigned developer builds: close DAW before installing"],
+            "macos":{"url":base+mac,"sha256":hashlib.sha256((root/mac).read_bytes()).hexdigest()},
+            "windows":{"url":base+win,"sha256":hashlib.sha256((root/win).read_bytes()).hexdigest()}
+          }
+          dest=Path("updates/thecorrector/stable.json")
+          dest.write_text(json.dumps(manifest,indent=2)+"\n")
+          PY
+          rm -f updates/thecorrector/publish-request-v0120.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/thecorrector/stable.json updates/thecorrector/publish-request-v0120.json
+          git commit -m "[skip ci] Publish Corrector 0.12.0 verified installer downloads"
+          git push origin main
