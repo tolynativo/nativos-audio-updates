@@ -62,7 +62,7 @@ jobs:
           else
             gh release create "$TAG" "/tmp/corrector-public/$MAC" "/tmp/corrector-public/$WIN" \
               --draft --title "The Corrector v0.11.0" \
-              --notes "Unsigned development update: fixed manual pitch, multi-selection, octave shifts, scrub and vibrato line."
+              --notes "Unsigned development update: separate DRIFT X slope tool, visible edited contour, improved vocal pitch-period alignment and preserved VIBRATO X controls."
           fi
           gh release edit "$TAG" --draft=false --prerelease -R "$GITHUB_REPOSITORY"
       - name: Activate signed-hash in-plugin direct update feed
@@ -77,8 +77,8 @@ jobs:
           mac=os.environ["MAC"]; win=os.environ["WIN"]
           manifest={"schema":1,"product":"the-corrector","channel":"development",
             "published":True,"version":os.environ["VERSION"],
-            "notes":["Manual note edits now affect playback","Multi-select, octave ±12, double-click seek",
-                     "Vibrato line/X tool","Unsigned developer builds: close DAW before installing"],
+            "notes":["Separate DRIFT X and VIBRATO X tools","Edited drift and corrected pitch contour visible on every note",
+                     "Smoother pitch-period alignment and guarded vocal timbre","Unsigned developer builds: close DAW before installing"],
             "macos":{"url":base+mac,"sha256":hashlib.sha256((root/mac).read_bytes()).hexdigest()},
             "windows":{"url":base+win,"sha256":hashlib.sha256((root/win).read_bytes()).hexdigest()}
           }
