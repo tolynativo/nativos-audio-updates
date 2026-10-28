@@ -3,19 +3,19 @@
   "product": "the-corrector",
   "channel": "development",
   "published": true,
-  "version": "0.12.0",
+  "version": "0.13.0",
   "notes": [
-    "Natural dynamics: removed per-sample gain riding",
-    "Host-synced source-matched correction without doubled vocals",
-    "Continuous DAW scan with automatic stop/seek detection",
-    "Unsigned developer builds: close DAW before installing"
+    "Click/pop prevention on DAW and local playback transport",
+    "Smoothed corrected vocal note edges and pitch audition",
+    "Keeps natural vocal dynamics; no automatic compression",
+    "Unsigned developer build: close DAW before installing"
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.12.0/The-Corrector-v0.12.0-macOS-UNSIGNED.pkg",
-    "sha256": "14e23e35a887aafaa769666beff4cd4053635f7d481fc42e88401a29f808d2a5"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.13.0/The-Corrector-v0.13.0-macOS-UNSIGNED.pkg",
+    "sha256": "7d331de687786fe18b5138951a43a7cec7874f7083d63819d00cbf8efc8e9ac2"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.12.0/The-Corrector-v0.12.0-Windows-x64-UNSIGNED-Setup.exe",
-    "sha256": "8f8156fb5b64ff1630c0f627ea2fdd400732b087a6155ba457c222a3988326df"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/corrector-v0.13.0/The-Corrector-v0.13.0-Windows-x64-UNSIGNED-Setup.exe",
+    "sha256": "200b39d6e0a334f148ed3f65a77ad87c3302f3d3bd7d59752155fd9ce5cb467f"
   }
 }
