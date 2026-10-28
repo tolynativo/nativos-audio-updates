@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "product": "nrack",
+  "channel": "beta",
+  "published": false,
+  "version": "0.4.2",
+  "notes": [
+    "N Rack simplified interface, operational slot power and chain buttons, no duplicated boxes",
+    "In-plugin verified installer downloads when released",
+    "macOS Universal VST3/AU and Windows VST3"
+  ],
+  "macos": null,
+  "windows": null
+}
