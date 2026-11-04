@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "product": "nres",
+  "channel": "stable",
+  "published": false,
+  "version": "0.2.0",
+  "notes": [
+    "N RES by Nativos Audio / Yai y Toly.",
+    "Black and Yellow factory skin; Violet and Ice Blue optional skins.",
+    "Default preset and in-plugin update channel are in development.",
+    "No official installer has been published yet."
+  ],
+  "macos": null,
+  "windows": null
+}
