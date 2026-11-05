@@ -1,8 +1,8 @@
 {
-  "version": "1.0.3",
-  "mac_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.3/IMPACT-macOS-Universal-v1.0.3-UNSIGNED.pkg",
-  "windows_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.3/IMPACT-Windows-x64-Setup.exe",
-  "mac_sha256": "3f73827122bca1fc668315a864a0839789179f66f856027a9384f0b921ed495c",
-  "windows_sha256": "f0ab09752e29f6c6abcf2c23aaa8de80e9225d875fd27e165e7862a221546ea7",
-  "notes": "IMPACT stereo/mono and neutral-signal transparency update."
+  "version": "1.0.4",
+  "mac_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.4/IMPACT-macOS-Universal-v1.0.4-UNSIGNED.pkg",
+  "windows_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.4/IMPACT-Windows-x64-Setup.exe",
+  "mac_sha256": "b8dba9f509eac61bd0f4da1c91ac8f1974325ca11889afc350b9390d5ad5ab14",
+  "windows_sha256": "565624e0f80d6ccd190b5faae291e196baa7e3ef079664dcf5efba73d66f2f03",
+  "notes": "IMPACT v1.0.4 upgraded Punch transient DSP, stereo-linked processing and transparent bypass."
 }
