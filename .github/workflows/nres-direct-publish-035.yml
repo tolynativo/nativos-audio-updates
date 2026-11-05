@@ -1,0 +1,96 @@
+name: Publish verified N RES 0.3.5 installers to in-plugin updates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nres-direct-publish-035.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: nres-v0.3.5
+      VERSION: "0.3.5"
+      SOURCE_COMMIT: "4c57540c6f265454c9f3d8482dfca5de6baee419"
+      MAC_ZIP_URL: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-d55c-81f5-95ad-8b3667d4771e/raw?se=2026-11-05T21%3A49%3A34Z&sp=r&sv=2026-02-06&sr=b&scid=077699a0-4cd0-5b80-b6a3-914077c5f6cd&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-05T14%3A07%3A12Z&ske=2026-11-06T14%3A07%3A12Z&sks=b&skv=2026-02-06&sig=ul24VFuKekxtEV95ID2bfAC3zhbjyWl6YNgeo3mHG70%3D"
+      WIN_ZIP_URL: "https://sdmntprcentralus.oaiusercontent.com/files/00000000-5acc-81f5-af07-e740dcef6b70/raw?se=2026-11-05T21%3A49%3A34Z&sp=r&sv=2026-02-06&sr=b&scid=0aed5bc5-a7a6-552e-9dd6-4718531bbfb1&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-05T03%3A57%3A55Z&ske=2026-11-06T03%3A57%3A55Z&sks=b&skv=2026-02-06&sig=Ei7qIkivHLyu4EPZG6dw3PNss1agzHwRzbZwXTPdpco%3D"
+      MAC_ZIP_SHA256: "d6351c8e84cf809b2ceebb62904e8d15d728bc3ee9fc8bd1db6b436e1b364cad"
+      WIN_ZIP_SHA256: "e4194d9589e65501c5ace4b0d5119b240cbd26958759bfe800b3ad93ce3fddce"
+      MAC_NAME: N-RES-0.3.5-macOS-Universal-UNSIGNED.pkg
+      WIN_NAME: N-RES-0.3.5-Windows-x64-UNSIGNED.exe
+      MAC_FILE_SHA256: "22eb95eaf0f8bc3d17128e254a50debf5f0973920bdc1317f600ca14b1e19c5f"
+      WIN_FILE_SHA256: "d29e510bff69f99d474f4519602df002eed700df1ef532aedbe58db1ad6d5e09"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the exact build artifacts and confirm GitHub-produced hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages verified
+          curl --fail --location --retry 2 --retry-delay 2 --silent --show-error "$MAC_ZIP_URL" -o packages/mac.zip
+          curl --fail --location --retry 2 --retry-delay 2 --silent --show-error "$WIN_ZIP_URL" -o packages/windows.zip
+          echo "$MAC_ZIP_SHA256  packages/mac.zip" | sha256sum -c -
+          echo "$WIN_ZIP_SHA256  packages/windows.zip" | sha256sum -c -
+          unzip -p packages/mac.zip "$MAC_NAME" > "packages/$MAC_NAME"
+          unzip -p packages/windows.zip "$WIN_NAME" > "packages/$WIN_NAME"
+          echo "$MAC_FILE_SHA256  packages/$MAC_NAME" | sha256sum -c -
+          echo "$WIN_FILE_SHA256  packages/$WIN_NAME" | sha256sum -c -
+          test "$(stat -c%s "packages/$MAC_NAME")" -gt 10000000
+          test "$(stat -c%s "packages/$WIN_NAME")" -gt 2500000
+      - name: Publish both binaries to a public release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target main --draft \
+              --title "N RES v$VERSION — Nativos Audio" \
+              --notes "N RES v0.3.5 includes band Delta audition, stereo focus, smooth bypass, Wet Trim, and A/B session persistence. Mac VST3/AU Universal and Windows VST3 x64 packages passed automated tests. These packages are UNSIGNED development builds and must be tested in Ableton before retail distribution."
+          fi
+          gh release upload "$TAG" "packages/$MAC_NAME" "packages/$WIN_NAME" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir verified
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir verified
+          cmp "packages/$MAC_NAME" "verified/$MAC_NAME"
+          cmp "packages/$WIN_NAME" "verified/$WIN_NAME"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+      - name: Activate SHA-256-verified update feed for existing N RES installations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          version=os.environ["VERSION"]
+          root="https://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/releases/download/"+os.environ["TAG"]+"/"
+          def asset(env):
+              name=os.environ[env]
+              p=Path("packages")/name
+              return {"url":root+name,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
+          feed={
+              "schema":1, "product":"nres", "channel":"stable",
+              "published":True, "version":version,
+              "notes":[
+                  "N RES 0.3.5: single-band Delta preview, stereo focus, Wet Trim and smoothed bypass/output.",
+                  "Includes compatible user presets and A/B state persistence; approved Nativos Audio black/yellow UI.",
+                  "Development installers are unsigned. Close your DAW before running the installer."
+              ],
+              "macos":asset("MAC_NAME"), "windows":asset("WIN_NAME")
+          }
+          path=Path("updates/nres/stable.json")
+          path.parent.mkdir(parents=True,exist_ok=True)
+          path.write_text(json.dumps(feed,indent=2)+"\n")
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/nres/stable.json
+          if git diff --cached --quiet; then
+            echo "N RES update feed already current."
+          else
+            git commit -m "Publish SHA256-verified N RES v0.3.5 in-plugin installers"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
