@@ -1,0 +1,71 @@
+name: Activate verified N RES in-plugin installer updates
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published N RES release tag, e.g. nres-v0.3.2
+        type: string
+        required: true
+permissions:
+  contents: write
+jobs:
+  activate:
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'nres-v') }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate published release and two complete installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^nres-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Not a N RES release tag"; exit 1; }
+          VERSION="${TAG#nres-v}"
+          MAC="N-RES-${VERSION}-macOS-Universal-UNSIGNED.pkg"
+          WIN="N-RES-${VERSION}-Windows-x64-UNSIGNED.exe"
+          export VERSION MAC WIN
+          draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+          test "$draft" = false
+          mkdir -p installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC" --dir installers
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN" --dir installers
+          test "$(stat -c%s "installers/$MAC")" -gt 10000000
+          test "$(stat -c%s "installers/$WIN")" -gt 2500000
+          python3 - <<'PY'
+          import os,json,hashlib,pathlib
+          root=pathlib.Path("installers")
+          version=os.environ["VERSION"]
+          tag=os.environ["TAG"]
+          base=f"https://github.com/tolynativo/nativos-audio-updates/releases/download/{tag}/"
+          def asset(k):
+              name=os.environ[k]
+              p=root/name
+              return {"url":base+name, "sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
+          manifest={
+              "schema":1,"product":"nres","channel":"stable",
+              "version":version,"published":True,
+              "notes":[
+                  "N RES v"+version+" restores responsive five-point spectral resonance controls.",
+                  "Retains black-and-yellow N RES interface and BY YAI Y TOLY branding.",
+                  "Download and install from Settings > Updates inside existing N RES installations.",
+                  "Installers are unsigned: close the DAW before installing."
+              ],
+              "macos":asset("MAC"),"windows":asset("WIN")
+          }
+          pathlib.Path("stable.json").write_text(json.dumps(manifest,indent=2)+"\n")
+          print("Verified release installer hashes and sizes for v"+version)
+          PY
+      - name: Activate update manifest for existing plugin installations
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="updates/nres/stable.json"
+          old_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path" --jq .sha)"
+          data="$(base64 -w0 stable.json)"
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+              -f "message=Activate verified N RES ${TAG} in-plugin updates" \
+              -f "content=$data" -f "sha=$old_sha" -f "branch=main" >/dev/null
+          echo "Existing N RES v0.3.1 installations can detect and download $TAG."
