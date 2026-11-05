@@ -3,18 +3,18 @@
   "product": "nres",
   "channel": "stable",
   "published": true,
-  "version": "0.3.6",
+  "version": "0.3.7",
   "notes": [
-    "N RES 0.3.6: real-time resonance reduction display, separate depth curve, 100% Depth point control, and editable band inspector.",
-    "Includes compatible user presets and A/B state persistence; approved Nativos Audio black/yellow UI.",
+    "N RES 0.3.7: 95 original factory presets, a category and favorites browser, saved preset navigation and a simplified four-knob UI.",
+    "Four main controls: Depth, Detail, Attack and Release. Saved user presets, A/B and black/yellow branding remain compatible.",
     "Development installers are unsigned. Close your DAW before running the installer."
   ],
   "macos": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.6/N-RES-0.3.6-macOS-Universal-UNSIGNED.pkg",
-    "sha256": "ad4f9095b30d82b339a64d1c5862e645184725a79b8ff9427ad0d602a318973e"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.7/N-RES-0.3.7-macOS-Universal-UNSIGNED.pkg",
+    "sha256": "0cedb5f084241c6d86ae9a75a6884907db57c0be24ee1324165cf22bb1185217"
   },
   "windows": {
-    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.6/N-RES-0.3.6-Windows-x64-UNSIGNED.exe",
-    "sha256": "7ac15345702d5bdbf5a5f4f8cb0f24ed545a018dda0f77d7144f310dab46a041"
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.7/N-RES-0.3.7-Windows-x64-UNSIGNED.exe",
+    "sha256": "e0aa4be87faa860c0ed15c140751d35d41bf6fc26ab57c1fc6c9c695c26e107c"
   }
 }
