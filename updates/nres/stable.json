@@ -2,14 +2,19 @@
   "schema": 1,
   "product": "nres",
   "channel": "stable",
-  "published": false,
-  "version": "0.2.0",
+  "published": true,
+  "version": "0.3.5",
   "notes": [
-    "N RES by Nativos Audio / Yai y Toly.",
-    "Black and Yellow factory skin; Violet and Ice Blue optional skins.",
-    "Default preset and in-plugin update channel are in development.",
-    "No official installer has been published yet."
+    "N RES 0.3.5: single-band Delta preview, stereo focus, Wet Trim and smoothed bypass/output.",
+    "Includes compatible user presets and A/B state persistence; approved Nativos Audio black/yellow UI.",
+    "Development installers are unsigned. Close your DAW before running the installer."
   ],
-  "macos": null,
-  "windows": null
+  "macos": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.5/N-RES-0.3.5-macOS-Universal-UNSIGNED.pkg",
+    "sha256": "22eb95eaf0f8bc3d17128e254a50debf5f0973920bdc1317f600ca14b1e19c5f"
+  },
+  "windows": {
+    "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/nres-v0.3.5/N-RES-0.3.5-Windows-x64-UNSIGNED.exe",
+    "sha256": "d29e510bff69f99d474f4519602df002eed700df1ef532aedbe58db1ad6d5e09"
+  }
 }
