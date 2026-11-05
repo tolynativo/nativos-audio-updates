@@ -1,0 +1,96 @@
+name: Publish N RES v0.3.3 in-plugin update (no PAT required)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nres-public-release.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Create N RES release draft
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: nres-v0.3.3
+    steps:
+      - name: Create upload-ready draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Draft or release exists; not overwriting uploaded binaries."
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target main --draft \
+              --title "N RES v0.3.3 — Nativos Audio" \
+              --notes "Verified pre-release installers for Mac Universal VST3/AU and Windows x64 VST3. Original N RES DSP improvements, approved black/yellow UI and BY YAI Y TOLY branding. Installers are unsigned; close Ableton before installation."
+          fi
+          echo "Draft link: https://github.com/$GITHUB_REPOSITORY/releases"
+
+  activate:
+    name: Activate feed after release is published
+    if: github.event_name == 'release' && github.event.release.tag_name == 'nres-v0.3.3'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: nres-v0.3.3
+      VERSION: 0.3.3
+      MAC_NAME: N-RES-0.3.3-macOS-Universal-UNSIGNED.pkg
+      WIN_NAME: N-RES-0.3.3-Windows-x64-UNSIGNED.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify published binaries and calculate SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verified
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC_NAME" --dir verified
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN_NAME" --dir verified
+          test -s "verified/$MAC_NAME"
+          test -s "verified/$WIN_NAME"
+          test "$(stat -c%s "verified/$MAC_NAME")" -gt 10000000
+          test "$(stat -c%s "verified/$WIN_NAME")" -gt 2500000
+          sha256sum "verified/$MAC_NAME" "verified/$WIN_NAME"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          tag=os.environ['TAG']
+          root=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{tag}/"
+          def entry(k):
+              name=os.environ[k]
+              data=(Path('verified')/name).read_bytes()
+              return {'url':root+name,'sha256':hashlib.sha256(data).hexdigest()}
+          manifest={
+              'schema':1,'product':'nres','channel':'stable','published':True,
+              'version':os.environ['VERSION'],
+              'notes':[
+                  'N RES v0.3.3 revised adaptive DSP, transient guard and spectral processing.',
+                  'Kept black/yellow UI and original BY YAI Y TOLY lettering.',
+                  'Mac VST3/AU and Windows VST3 are unsigned development installers; close DAW before installing.'
+              ],
+              'macos':entry('MAC_NAME'),'windows':entry('WIN_NAME')
+          }
+          p=Path('updates/nres/stable.json')
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+      - name: Commit verified public update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/nres/stable.json
+          if git diff --cached --quiet; then echo 'Already published'; else
+            git commit -m 'Activate SHA256-verified N RES v0.3.3 plugin updater'
+            git push origin HEAD:main
+          fi
