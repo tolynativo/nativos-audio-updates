@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
-  "mac_url": "",
-  "mac_sha256": "",
-  "windows_url": "",
-  "windows_sha256": "",
-  "notes": "IMPACT installer update channel initialized. No verified release is currently published."
+  "version": "1.0.3",
+  "mac_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.3/IMPACT-macOS-Universal-v1.0.3-UNSIGNED.pkg",
+  "windows_url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/impact-v1.0.3/IMPACT-Windows-x64-Setup.exe",
+  "mac_sha256": "3f73827122bca1fc668315a864a0839789179f66f856027a9384f0b921ed495c",
+  "windows_sha256": "f0ab09752e29f6c6abcf2c23aaa8de80e9225d875fd27e165e7862a221546ea7",
+  "notes": "IMPACT stereo/mono and neutral-signal transparency update."
 }
