@@ -8,7 +8,7 @@
     "sha256": "7fe330c78b147c63dc538acfa12c6701afc4a33b84ae0436e574c48dbfc471aa"
   },
   "windows": {
-    "zip_url": "https://sdmntprcentralus.oaiusercontent.com/files/00000000-7454-81f5-b7e9-a5f042a33f35/raw?se=2026-11-06T21%3A36%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=b3391287-6c41-5ec8-91b0-814bc096c54d&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&sks=b&skv=2026-02-06&sig=dgQJZXeaaGl5aSDERtVej%2BW2pWnUavKvyHfD2K79oCE%3D",
+    "zip_url": "https://sdmntprcentralus.oaiusercontent.com/files/00000000-7454-81f5-b7e9-a5f042a33f35/raw?se=2026-11-06T21%3A36%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=b3391287-6c41-5ec8-91b0-814bc096c54d&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-11-06T17%3A12%3A43Z&ske=2026-11-07T17%3A12%3A43Z&sks=b&skv=2026-02-06&sig=dgQJZXeaaGl5aSDERtVej%2BW2pWnUavKvyHfD2K79oCE%3D",
     "zip_sha256": "e439d7204322e88dc62787674dbcaf6c9173c971241619947ef83a6f58f8b73a",
     "bytes": 5603770,
     "sha256": "5472e5050467290ca2b1af4201b3d677b625ab12b87b97433f25630a4d3011e9"
