@@ -1,0 +1,106 @@
+name: Publish AD-X v1.6 installers for in-plugin updates
+on:
+  push:
+    branches: [main]
+    paths:
+      - updates/adx/publish-request-v16.json
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: adx-v1.6.0
+      VERSION: 1.6.0
+      MAC: Nativos-AD-X-Mac-Universal-v1.6.0-UNSIGNED.pkg
+      WIN: Nativos-AD-X-Windows-v1.6.0.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify Mac and Windows GitHub Actions installer artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s updates/adx/publish-request-v16.json
+          mkdir -p approved
+          python3 - <<'PY'
+          import hashlib, json, io, urllib.request, zipfile, os
+          from pathlib import Path
+          manifest=json.loads(Path("updates/adx/publish-request-v16.json").read_text())
+          if manifest.get("version")!="1.6.0":raise RuntimeError("Wrong release version")
+          for platform,filename in (("macos",os.environ["MAC"]),("windows",os.environ["WIN"])):
+              entry=manifest[platform]
+              url=entry["zip_url"]
+              if not url.startswith("https://"):raise RuntimeError("Non-HTTPS installer")
+              request=urllib.request.Request(url,headers={"User-Agent":"Nativos-Audio-Release-Verification"})
+              with urllib.request.urlopen(request,timeout=150) as response:
+                  archive=response.read(100000001)
+              if len(archive)>100000000 or hashlib.sha256(archive).hexdigest()!=entry["zip_sha256"]:
+                  raise RuntimeError("Unverified artifact ZIP: "+platform)
+              with zipfile.ZipFile(io.BytesIO(archive)) as z:
+                  matches=[x for x in z.infolist() if x.filename==filename and not x.is_dir()]
+                  if len(matches)!=1:raise RuntimeError("Missing expected "+filename)
+                  data=z.read(matches[0])
+              if len(data)!=entry["bytes"] or hashlib.sha256(data).hexdigest()!=entry["sha256"]:
+                  raise RuntimeError("Invalid installer checksum: "+platform)
+              if len(data)<2500000:raise RuntimeError("Installer suspiciously small")
+              (Path("approved")/filename).write_bytes(data)
+              print(platform,filename,len(data),entry["sha256"])
+          PY
+      - name: Publish direct public HTTPS installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target main --draft \
+              --title "Nativos AD-X v1.6 - Threshold and User Manual" \
+              --notes "Original Nativos Audio AD-X DSP, approved BY YAI Y TOLY faceplate. Approved analog stage names, CEILING clipping label, and clickable exact numeric input. Manual is accessible from the information icon; updates only from Settings. Existing audio DSP unchanged. These Mac Universal VST3/AU and Windows x64 VST3 installers are UNSIGNED development builds. Close your DAW before installing."
+          fi
+          gh release upload "$TAG" "approved/$MAC" "approved/$WIN" --repo "$GITHUB_REPOSITORY" --clobber
+          mkdir -p checked
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MAC" --dir checked
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$WIN" --dir checked
+          cmp "approved/$MAC" "checked/$MAC"
+          cmp "approved/$WIN" "checked/$WIN"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          curl --fail --location --silent --show-error --retry 2 -o /dev/null \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$MAC"
+          curl --fail --location --silent --show-error --retry 2 -o /dev/null \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$WIN"
+      - name: Activate official AD-X catalog inside existing plugins
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          base="https://github.com/"+os.environ["GITHUB_REPOSITORY"]+"/releases/download/"+os.environ["TAG"]+"/"
+          def pkg(name):
+              data=(Path("approved")/name).read_bytes()
+              return {"url":base+name,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data)}
+          catalog={
+            "schema":1,
+            "product":"Nativos AD-X",
+            "channel":"stable",
+            "version":os.environ["VERSION"],
+            "published":True,
+            "notes":"v1.6: Final approved matte UI, CEILING label, direct precise typed value boxes; the i icon opens only the offline user manual and Settings contains Updates & Install. Existing v1.5 DSP unchanged. Unsigned installers; save and close DAW before installing.",
+            "macos":pkg(os.environ["MAC"]),
+            "windows":pkg(os.environ["WIN"])
+          }
+          path=Path("updates/adx/stable.json")
+          path.parent.mkdir(parents=True,exist_ok=True)
+          path.write_text(json.dumps(catalog,indent=2)+"\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/adx/stable.json
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Publish verified Nativos AD-X 1.5 in-plugin update"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
