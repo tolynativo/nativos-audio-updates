@@ -98,7 +98,8 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add updates/adx/stable.json
+          rm -f updates/adx/publish-request-v16.json
+          git add updates/adx/stable.json updates/adx/publish-request-v16.json
           if ! git diff --cached --quiet; then
             git commit -m "[skip ci] Publish verified Nativos AD-X 1.5 in-plugin update"
             git pull --rebase origin main
