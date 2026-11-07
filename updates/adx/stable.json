@@ -4,7 +4,7 @@
   "channel": "stable",
   "version": "1.6.1",
   "published": true,
-  "notes": "v1.6: Final approved matte UI and precise values preserved; repaired the malformed CLOSE text in Settings and the manual; the i icon opens only the offline user manual and Settings contains Updates & Install. Existing v1.5 DSP unchanged. Unsigned installers; save and close DAW before installing.",
+  "notes": "v1.6.1: Final approved matte UI and precise values preserved; repaired the malformed CLOSE text in Settings and the manual; the i icon opens only the offline user manual and Settings contains Updates & Install. Existing v1.5 DSP unchanged. Unsigned installers; save and close DAW before installing.",
   "macos": {
     "url": "https://github.com/tolynativo/nativos-audio-updates/releases/download/adx-v1.6.1/Nativos-AD-X-Mac-Universal-v1.6.1-UNSIGNED.pkg",
     "sha256": "91b87c7b8bcaf40f4c389307155613ff8206b9e3594d8de8edbb9db1f1f30647",
