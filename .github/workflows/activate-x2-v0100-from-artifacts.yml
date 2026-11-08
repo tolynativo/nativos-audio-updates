@@ -1,0 +1,97 @@
+name: Activate X2 v0.10.0 from approved build archives
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-x2-v0100-from-artifacts.yml'
+permissions:
+  contents: write
+concurrency:
+  group: x2-v0100-release-activation
+  cancel-in-progress: false
+jobs:
+  activate:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: x2-v0.10.0
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact X2 v0.10.0 archives already attached to release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/x2-zips /tmp/x2-mac /tmp/x2-win
+          gh release download "$TAG" -R "$REPO" --pattern 'X2-Compressor-v0.10.0-macOS-PKG-VST3-AU.zip' -D /tmp/x2-zips
+          gh release download "$TAG" -R "$REPO" --pattern 'X2-Compressor-v0.10.0-Windows-EXE-VST3.zip' -D /tmp/x2-zips
+          unzip -q /tmp/x2-zips/X2-Compressor-v0.10.0-macOS-PKG-VST3-AU.zip -d /tmp/x2-mac
+          unzip -q /tmp/x2-zips/X2-Compressor-v0.10.0-Windows-EXE-VST3.zip -d /tmp/x2-win
+      - name: Validate actual platform installers and prepare direct download assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/x2-ready
+          MAC="X2-Compressor-Nativos-Music-Audio-v0.10.0-macOS-UNSIGNED.pkg"
+          WIN="X2-Compressor-Nativos-Music-Audio-v0.10.0-Windows-x64-Setup.exe"
+          MAC_SRC="$(find /tmp/x2-mac -type f -name '*.pkg' -print -quit)"
+          WIN_SRC="$(find /tmp/x2-win -type f -name '*Setup.exe' -print -quit)"
+          test -n "$MAC_SRC" && test -n "$WIN_SRC"
+          test "$(find /tmp/x2-mac -type f -name '*.pkg' | wc -l)" -eq 1
+          test "$(find /tmp/x2-win -type f -name '*Setup.exe' | wc -l)" -eq 1
+          test "$(stat -c%s "$MAC_SRC")" -gt 3000000
+          test "$(stat -c%s "$WIN_SRC")" -gt 3000000
+          cp "$MAC_SRC" "/tmp/x2-ready/$MAC"
+          cp "$WIN_SRC" "/tmp/x2-ready/$WIN"
+          sha256sum /tmp/x2-ready/*
+      - name: Publish real direct installer assets to existing X2 release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" /tmp/x2-ready/*.pkg /tmp/x2-ready/*.exe -R "$REPO" --clobber
+          gh release view "$TAG" -R "$REPO" --json assets --jq '.assets[].name' | grep -Fx 'X2-Compressor-Nativos-Music-Audio-v0.10.0-macOS-UNSIGNED.pkg'
+          gh release view "$TAG" -R "$REPO" --json assets --jq '.assets[].name' | grep -Fx 'X2-Compressor-Nativos-Music-Audio-v0.10.0-Windows-x64-Setup.exe'
+      - name: Verify public URLs before switching customer update feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/$REPO/releases/download/$TAG"
+          for file in /tmp/x2-ready/*; do
+            fname="$(basename "$file")"
+            curl --fail --location --retry 3 --silent --show-error "$BASE/$fname" -o "/tmp/check-$fname"
+            cmp "$file" "/tmp/check-$fname"
+          done
+      - name: Activate v0.10.0 in original stable.json feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib, os
+          from pathlib import Path
+          root=Path("/tmp/x2-ready")
+          base=f"https://github.com/{os.environ['REPO']}/releases/download/x2-v0.10.0/"
+          files={"macos":"X2-Compressor-Nativos-Music-Audio-v0.10.0-macOS-UNSIGNED.pkg",
+                 "windows":"X2-Compressor-Nativos-Music-Audio-v0.10.0-Windows-x64-Setup.exe"}
+          feed={"schema":1,"product":"x2-compressor","channel":"stable","published":True,
+                "version":"0.10.0","notes":[
+                  "Approved clean X2 VU face, black negative scale labels and red 0 to 3.",
+                  "Original compressor DSP, presets, interactive controls, plugin IDs and updater preserved.",
+                  "Mac VST3/AU and Windows VST3 installers. Close DAW before installing; packages are unsigned."
+                ]}
+          for platform,name in files.items():
+            p=root/name
+            assert p.stat().st_size>3_000_000
+            feed[platform]={"url":base+name,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
+          dest=Path("updates/x2/stable.json")
+          dest.parent.mkdir(parents=True,exist_ok=True)
+          dest.write_text(json.dumps(feed,indent=2)+"\n")
+          print(dest.read_text())
+          PY
+          git config user.name 'Nativos Audio Updates'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/x2/stable.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Activate verified X2 v0.10.0 direct installers in original update feed'
+            git push origin HEAD:main
+          fi
