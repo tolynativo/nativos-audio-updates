@@ -6,6 +6,7 @@
   "version": "1.0.0",
   "notes": [
     "N STEP — Nativos Audio by Yai y Toly.",
+    "Next update: Mac-only WKWebView native background matches the existing N STEP dark UI without a blocking loading screen (pending native build and host test).",
     "The experimental hidden-WebView startup change was rolled back after a blank N STEP editor was reported. The working interface is restored; startup flash remains under investigation.",
     "Next update: selecting a new browser sample stops the previous audition instead of layering sounds.",
     "Next update: full folder names remain visible in the sample browser.",
