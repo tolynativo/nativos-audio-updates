@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "product": "nstep",
+  "product": "N STEP",
   "channel": "stable",
   "published": false,
-  "version": "0.9.2",
+  "version": "1.0.0",
   "notes": [
     "N STEP — Nativos Audio by Yai y Toly.",
-    "A stable Mac/Windows installer will be published only after audio, MIDI, sample browser, pattern recall, bounce, ADSR and DAW testing passes."
+    "Folder-name visibility update prepared. Mac Universal VST3/AU and Windows VST3 installers will be offered after release checks pass."
   ],
   "macos": null,
   "windows": null
