@@ -6,6 +6,7 @@
   "version": "1.0.0",
   "notes": [
     "N STEP — Nativos Audio by Yai y Toly.",
+    "Next update: prevent white editor flash on close/reopen by keeping the embedded UI loaded and painting a dark startup background.",
     "Next update: selecting a new browser sample stops the previous audition instead of layering sounds.",
     "Next update: full folder names remain visible in the sample browser.",
     "Mac Universal VST3/AU and Windows VST3 installers will activate only after native DSP, packaging and DAW checks pass."
