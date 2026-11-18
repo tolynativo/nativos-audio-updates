@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "notes": [
     "N STEP — Nativos Audio by Yai y Toly.",
-    "Next update: keep the WebView hidden until the N STEP UI completes layout, showing the native dark loading screen instead of a white flash.",
+    "The experimental hidden-WebView startup change was rolled back after a blank N STEP editor was reported. The working interface is restored; startup flash remains under investigation.",
     "Next update: selecting a new browser sample stops the previous audition instead of layering sounds.",
     "Next update: full folder names remain visible in the sample browser.",
     "Mac Universal VST3/AU and Windows VST3 installers will activate only after native DSP, packaging and DAW checks pass."
